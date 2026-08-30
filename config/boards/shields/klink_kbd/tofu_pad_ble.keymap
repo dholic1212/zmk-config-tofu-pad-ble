@@ -1,0 +1,41 @@
+#include "common.keymap"
+
+#define UF_RESET bootloader_reset 0 0
+#define UF_BT1 device_bt1 0 0
+#define UF_BT2 device_bt2 0 1
+#define UF_BT3 device_bt3 0 2
+
+/ {
+    keymap {
+        compatible = "zmk,keymap";
+        
+        default_layer {
+
+            bindings = <
+                                                      &mo 1
+        &kp KP_NLCK    &kp KP_SLASH &kp KP_ASTERISK   &kp KP_MINUS
+        &kp KP_N7      &kp KP_N8    &kp KP_N9         
+        &kp KP_N4      &kp KP_N5    &kp KP_N6         &kp KP_PLUS
+        &kp KP_N1      &kp KP_N2    &kp KP_N3         
+        &kp KP_N0                   &kp KP_DOT        &kp KP_ENTER
+            >;
+        };
+
+        layer1 {
+            bindings = <
+                                                   &trans 
+        &trans         &trans       &trans         &trans
+        &trans         &trans       &trans 
+        &trans         &trans       &trans         &trans
+        &UF_BT1        &UF_BT2      &UF_BT3
+        &Device_USB                 &trans         &trans          
+            >;
+        };
+        layer2 { status = "reserved"; };
+        layer3 { status = "reserved"; };
+        layer4 { status = "reserved"; };
+        layer5 { status = "reserved"; };
+        layer6 { status = "reserved"; };
+        layer7 { status = "reserved"; };
+    };
+};
