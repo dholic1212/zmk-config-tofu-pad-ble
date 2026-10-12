@@ -3,8 +3,9 @@
  *
  * SPDX-License-Identifier: MIT
  */
-#define FW_VER zmk_firmware_version_261007
+#define FW_VER zmk_firmware_version_261012
  
+ // 排除一些显示
 #if 1
 #define ZMK_BEHAVIORS_OMIT_CAPS_WORD        // &caps_word
 #define ZMK_BEHAVIORS_OMIT_KT               // &kt, Key Toggle
@@ -78,9 +79,12 @@
             display-name = "Layer-Tap(HP)";
         };
         
+        // trans和none重命名一下，trabs排在前面
         trans: transparent { display-name = "_Trans"; };
         none: none { display-name = "Key(None)"; };
         
+        // ZMK Studio会把所有的Macro和behavior显示出来，暂时还没有找到隐藏的办法
+        // 将它们重命名一下，以显示在列表最后
         #if 1
         out: outputs { display-name = "zmk_reserved_output_sel"; };
         ZMK_MACRO(Device_USB, bindings = <&out OUT_USB>;)
@@ -127,6 +131,7 @@
             #binding-cells = <0>;
             hold-time-ms = <1000>;
         };
+        // Reset和Bootloader统一为一个按键, hold 3s = Bootloader
         sys_reset: sysreset { display-name = "zmk_reserved_reset"; };
         bootloader: bootload { display-name = "zmk_reserved_bootloader"; };
         

@@ -67,6 +67,7 @@ static void set_indicator_color(uint8_t bits) {
 }
 
 static void get_lock_indicators(void) {
+    //获取指示灯
     uint8_t state = zmk_hid_indicators_get_current_profile();
     LOG_DBG("LOCK LEDS: %d", state);
     indicator_state.keylock = state;
@@ -76,6 +77,7 @@ static void hid_indicators_status_update_cb(const zmk_event_t *eh) {
     get_lock_indicators();
 }
 
+// 添加 LISTENE 和 SUBSCRIPTION。在指示灯变化时，便于更新。
 ZMK_LISTENER(widget_hid_indicators_status, hid_indicators_status_update_cb);
 ZMK_SUBSCRIPTION(widget_hid_indicators_status, zmk_hid_indicators_changed);
 
@@ -112,6 +114,8 @@ static void ble_active_profile_update_cb(const zmk_event_t *eh) {
 ZMK_LISTENER(ble_active_profile_listener, ble_active_profile_update_cb);
 ZMK_SUBSCRIPTION(ble_active_profile_listener, zmk_ble_active_profile_changed);
 
+// USB 成功连接（HID 枚举完成）时，始终先切换到 USB 输出，
+// 而不是保持之前可能手动切换过的蓝牙通道。
 //#if IS_ENABLED(CONFIG_ZMK_USB)
 static int usb_conn_state_update_cb(const zmk_event_t *eh) {
     struct zmk_usb_conn_state_changed *ev = as_zmk_usb_conn_state_changed(eh);
@@ -121,6 +125,7 @@ static int usb_conn_state_update_cb(const zmk_event_t *eh) {
         zmk_endpoints_select_transport(ZMK_TRANSPORT_USB);
     }
 
+    // 继续向 endpoints 等其他监听器传递该事件
     return ZMK_EV_EVENT_BUBBLE;
 }
 
@@ -154,6 +159,7 @@ ZMK_LISTENER(keycode_user, keycode_user_listener);
 ZMK_SUBSCRIPTION(keycode_user, zmk_keycode_state_changed);
 
 #if IS_ENABLED(CONFIG_ZMK_BLE)
+// 定义在下方自定义 Battery Service 区块
 static void battery_report_notify_now(void);
 #endif
 
@@ -162,6 +168,8 @@ static int led_battery_listener_cb(const zmk_event_t *eh) {
     uint8_t battery_level = as_zmk_battery_state_changed(eh)->state_of_charge;
     indicator_state.battery = battery_level;
 #if IS_ENABLED(CONFIG_ZMK_BLE) && IS_ENABLED(CONFIG_USB_DEVICE_STACK)
+    // VBUS 已连接视为正常充电状态（此时设备通常接着醒着的主机）：
+    // 电量每次变化都立即正常上报，不受“仅唤醒时通知”的限制。
     if (zmk_usb_is_powered()) {
         battery_report_notify_now();
     }
@@ -173,6 +181,13 @@ ZMK_LISTENER(led_battery_listener, led_battery_listener_cb);
 ZMK_SUBSCRIPTION(led_battery_listener, zmk_battery_state_changed);
 #endif // IS_ENABLED(CONFIG_ZMK_BATTERY_REPORTING)
 
+// BLE 电量上报（自定义 Battery Service）
+// 核心的 CONFIG_BT_BAS 已关闭，避免周期性电量通知包唤醒睡眠中的 macOS。
+// 这里注册标准 GATT Battery Service(0x180F)/Battery Level(0x2A19)：
+//   - 主机连接后可主动读取当前电量（读取发生在主机醒着时，不会唤醒主机）；
+//   - VBUS 连接（充电中）时，电量变化立即通知；
+//   - 其余时间（电池供电）通知只在键盘从节能状态(Idle/Sleep)回到 Active
+//     时发送一次（即用户按键唤醒时）。
 #if IS_ENABLED(CONFIG_ZMK_BLE)
 static ssize_t battery_report_read_level(struct bt_conn *conn, const struct bt_gatt_attr *attr,
                                          void *buf, uint16_t len, uint16_t offset) {
@@ -180,6 +195,7 @@ static ssize_t battery_report_read_level(struct bt_conn *conn, const struct bt_g
     return bt_gatt_attr_read(conn, attr, buf, len, offset, &level, sizeof(level));
 }
 
+// attrs 索引：[0] 服务, [1] characteristic 声明, [2] Battery Level 值, [3] CCC
 BT_GATT_SERVICE_DEFINE(klink_battery_report_svc,
                        BT_GATT_PRIMARY_SERVICE(BT_UUID_BAS),
                        BT_GATT_CHARACTERISTIC(BT_UUID_BAS_BATTERY_LEVEL,
@@ -190,6 +206,7 @@ BT_GATT_SERVICE_DEFINE(klink_battery_report_svc,
 
 static void battery_report_notify_now(void) {
     uint8_t level = zmk_battery_state_of_charge();
+    // conn 传 NULL：仅向已使能通知(CCC)的连接发送；无人订阅时为空操作
     bt_gatt_notify(NULL, &klink_battery_report_svc.attrs[2], &level, sizeof(level));
 }
 
@@ -208,6 +225,7 @@ static int battery_report_activity_cb(const zmk_event_t *eh) {
 
     if (ev->state == ZMK_ACTIVITY_ACTIVE &&
         (last_state == ZMK_ACTIVITY_IDLE || last_state == ZMK_ACTIVITY_SLEEP)) {
+        // 延迟 1 秒：等核心回到 Active 时立即执行的电量轮询刷新数值后再通知
         k_work_reschedule(&battery_report_work, K_SECONDS(1));
     }
 
@@ -221,17 +239,19 @@ ZMK_SUBSCRIPTION(klink_battery_report, zmk_activity_state_changed);
 
 void led_process_thread(void) {
     while (true) {
+        // 控制间隔时间执行
         k_sleep(K_MSEC(20));
         static uint16_t led_timer_steps = 0;
         led_timer_steps++;
 
         if (indicator_state.connection > 0) {
+            // 蓝牙0 1 2则对应BT1(RG黄) BT2 (GB青) BT3(RB紫)
             static uint8_t profile_color_bits[3]= {0b011, 0b110, 0b101};
             if (indicator_state.active_device >= 3) {
                 return;
             }
 
-            if ((led_timer_steps & 0xf) == 0xf) {
+            if ((led_timer_steps & 0xf) == 0xf) { //每16*20 = 320ms
                 indicator_state.flash_times--;
                 uint8_t color_bits = profile_color_bits[indicator_state.active_device];
                 switch ((led_timer_steps >> 4) & 0x3) {
@@ -247,6 +267,7 @@ void led_process_thread(void) {
                     case 3:
                         if (indicator_state.connection != 2) {
                             bt_addr_le_t *addr = zmk_ble_active_profile_addr();
+                            // clear_profile_bond(uint8_t profile)时，执行了 set_profile_address(profile, BT_ADDR_LE_ANY);
                             if ( bt_addr_le_eq(addr, BT_ADDR_LE_ANY) ) set_indicator_color(0b001); //red color
                             else set_indicator_color(0b100); //blue color
                         }
@@ -255,11 +276,13 @@ void led_process_thread(void) {
                 if (indicator_state.flash_times == 0) indicator_state.connection = 0;
             }
         } else if ( (indicator_state.battery <= 10) && (zmk_usb_is_powered() == 0) ) {
+            //低电量时，闪红色。参考windows的指示，低于10时为低电量
             if ((led_timer_steps & 0x1f) == 0xf) set_indicator_color(0b001);
             else if ((led_timer_steps & 0x1f) == 0x1f) set_indicator_color(0);
         } else {
+            //更新lock指示灯
             if (indicator_state.keylock & NUMLOCK_BIT) {
-                set_indicator_color(0b101);
+                if (zmk_usb_is_powered()) set_indicator_color(0b101);
             } else {
                 set_indicator_color(0);
             }
@@ -273,8 +296,13 @@ K_THREAD_DEFINE(led_process_tid, 1024, led_process_thread, NULL, NULL, NULL, K_L
 
 
 void klink_indicator_init_thread(void) {
+    // 启动时为未连接状态
     indicator_state.connection = 1;
+    // 使用下面命令设置蓝牙名称，是一次修改所有连接的。即使是已配对的，也能用此修改。
+    // 这个在之后，加入到用上位机或在线驱动，修改蓝牙名称。
+    // zmk_ble_set_device_name("Tofu60 v3.0z BLE");
     indicator_state.battery = 111;
 }
+//启动时执行，还需要从节能唤醒时也执行。
 K_THREAD_DEFINE(klink_indicator_init_tid, 1024, klink_indicator_init_thread, NULL, NULL, NULL, K_LOWEST_APPLICATION_THREAD_PRIO,
                 0, 200);
