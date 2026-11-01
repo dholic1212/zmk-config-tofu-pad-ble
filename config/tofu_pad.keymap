@@ -15,5 +15,27 @@
 &kp KP_N0                     &kp KP_DOT
             >;
         };
+
+        layer_1 {
+            bindings = <
+                        &trans
+&trans  &trans  &trans  &kp BACKSPACE
+&trans  &trans  &trans  &trans
+&trans  &trans  &trans
+&trans  &trans  &trans  &trans
+&trans          &trans
+            >;
+        };
+
+        layer_2 {
+            bindings = <
+                        &trans
+&trans  &trans  &trans  &trans
+&trans  &trans  &trans  &trans
+&trans  &trans  &trans
+&trans  &trans  &trans  &trans
+&trans          &trans
+            >;
+        };
     };
 };
