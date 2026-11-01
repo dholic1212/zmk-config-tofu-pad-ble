@@ -1,0 +1,37 @@
+{
+  "keyboard_name": "Custom Numpad",
+  "manufacturer": "Custom",
+  "url": "",
+  "maintainer": "User",
+  "width": 4,
+  "height": 6,
+  "layouts": {
+    "LAYOUT": {
+      "layout": [
+        { "label": "Esc", "x": 3, "y": 0 },
+
+        { "label": "Blank", "x": 0, "y": 1 },
+        { "label": "/", "x": 1, "y": 1 },
+        { "label": "*", "x": 2, "y": 1 },
+        { "label": "-", "x": 3, "y": 1 },
+
+        { "label": "7 Hm", "x": 0, "y": 2 },
+        { "label": "8 Up", "x": 1, "y": 2 },
+        { "label": "9 PU", "x": 2, "y": 2 },
+        { "label": "+", "x": 3, "y": 2, "h": 2 },
+
+        { "label": "4 Left", "x": 0, "y": 3 },
+        { "label": "5", "x": 1, "y": 3 },
+        { "label": "6 Right", "x": 2, "y": 3 },
+
+        { "label": "1 En", "x": 0, "y": 4 },
+        { "label": "2 Down", "x": 1, "y": 4 },
+        { "label": "3 PD", "x": 2, "y": 4 },
+        { "label": "Ent", "x": 3, "y": 4, "h": 2 },
+
+        { "label": "0 In", "x": 0, "y": 5, "w": 2 },
+        { "label": ". Dl", "x": 2, "y": 5 }
+      ]
+    }
+  }
+}
