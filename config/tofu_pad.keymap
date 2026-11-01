@@ -1,0 +1,30 @@
+#include <behaviors.dtsi>
+#include <dt-bindings/zmk/keys.h>
+
+/ {
+    keymap {
+        compatible = "zmk,keymap";
+
+        default_layer {
+            bindings = <
+                /* 상단 단독 키 */
+                &kp ESC                           
+
+                /* 1행: [빈칸], /, *, - */
+                &kp NONE   &kp KP_SLASH    &kp KP_MULTIPLY &kp KP_MINUS   
+
+                /* 2행: 7(Hm), 8(↑), 9(PU), + (상단) */
+                &kp KP_N7  &kp KP_N8       &kp KP_N9       &kp KP_PLUS    
+
+                /* 3행: 4(←), 5, 6(→), + (하단/병합된 경우) */
+                &kp KP_N4  &kp KP_N5       &kp KP_N6                      
+
+                /* 4행: 1(En), 2(↓), 3(PD), Ent (상단) */
+                &kp KP_N1  &kp KP_N2       &kp KP_N3       &kp KP_ENTER   
+
+                /* 5행: 0(In), .(Dl), Ent (하단/병합된 경우) */
+                &kp KP_N0  &kp KP_DOT                                     
+            >;
+        };
+    };
+};
